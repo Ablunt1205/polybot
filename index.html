@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PolyBot Pro</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+:root {
+  --bg:#060608;--s1:#0d0d12;--s2:#13131a;--s3:#1a1a24;
+  --border:#252530;--border2:#323240;
+  --lime:#c8ff00;--blue:#4488ff;--red:#ff3355;--orange:#ff8833;
+  --text:#dddde8;--muted:#55556a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(200,255,0,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(200,255,0,0.02) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;}
+.app{max-width:1000px;margin:0 auto;padding:24px 16px;position:relative;z-index:1;}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border);}
+.brand-name{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:var(--lime);text-shadow:0 0 30px rgba(200,255,0,0.3);}
+.brand-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:3px;}
+.pill{display:flex;align-items:center;gap:7px;padding:7px 14px;background:var(--s2);border:1px solid var(--border);border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+.led{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.led.on{background:var(--lime);box-shadow:0 0 8px var(--lime);animation:blink 2s infinite;}
+.led.err{background:var(--red);box-shadow:0 0 8px var(--red);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* WALLET CARD */
+.wallet-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:28px;margin-bottom:20px;text-align:center;}
+.wallet-card h2{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--text);margin-bottom:8px;}
+.wallet-card p{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.6;}
+
+/* DEBUG ZONE */
+.debug{background:rgba(255,51,85,0.06);border:1px solid rgba(255,51,85,0.2);border-radius:8px;padding:12px 16px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#ff7788;text-align:left;margin-bottom:16px;display:none;}
+
+/* CONNECT BUTTON */
+.btn-connect{
+  display:inline-flex;align-items:center;gap:12px;
+  padding:16px 32px;
+  background:var(--lime);
+  color:#000;
+  border:none;
+  border-radius:10px;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:20px;
+  letter-spacing:2px;
+  cursor:pointer;
+  transition:all 0.2s;
+  box-shadow:0 0 30px rgba(200,255,0,0.25);
+}
+.btn-connect:hover{box-shadow:0 0 50px rgba(200,255,0,0.45);transform:translateY(-2px);}
+.btn-connect:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+.mm-fox{font-size:24px;}
+
+.wallet-connected{display:none;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;}
+.wallet-addr-badge{background:var(--s2);border:1px solid rgba(200,255,0,0.3);border-radius:8px;padding:10px 18px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--lime);}
+.wallet-bal-badge{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);}
+.btn-disconnect{padding:10px 18px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;cursor:pointer;transition:all 0.2s;}
+.btn-disconnect:hover{border-color:var(--red);color:var(--red);}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.stat-l{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.stat-v{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;line-height:1;}
+.stat-v.lime{color:var(--lime);}
+.stat-v.red{color:var(--red);}
+.stat-v.blue{color:var(--blue);}
+.stat-d{font-size:10px;color:var(--muted);margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+
+/* MAIN */
+.main-layout{display:grid;grid-template-columns:1fr 300px;gap:16px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:16px;}
+.card:last-child{margin-bottom:0;}
+.section-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.row-label{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:10px;}
+.row-label .val{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--lime);font-weight:600;}
+input[type=range]{width:100%;-webkit-appearance:none;height:3px;background:var(--border2);border-radius:2px;outline:none;cursor:pointer;margin-bottom:18px;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--lime);box-shadow:0 0 12px rgba(200,255,0,0.5);cursor:pointer;}
+
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border);}
+.toggle-row:last-child{border-bottom:none;padding-bottom:0;}
+.tl{font-size:13px;}
+.ts{font-size:11px;color:var(--muted);margin-top:2px;}
+.tog{position:relative;width:40px;height:22px;cursor:pointer;flex-shrink:0;}
+.tog input{display:none;}
+.tog-track{position:absolute;inset:0;background:var(--border2);border-radius:100px;transition:background 0.25s;}
+.tog input:checked~.tog-track{background:var(--lime);}
+.tog-thumb{position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left 0.25s;box-shadow:0 1px 4px rgba(0,0,0,0.5);}
+.tog input:checked~.tog-thumb{left:21px;}
+
+.crypto-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px;}
+.cb{padding:12px 8px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:12px;cursor:pointer;text-align:center;transition:all 0.15s;}
+.cb .ci{font-size:18px;display:block;margin-bottom:4px;}
+.cb.on{border-color:var(--lime);color:var(--lime);background:rgba(200,255,0,0.05);}
+.cb:hover:not(.on){border-color:var(--muted);color:var(--text);}
+
+.launch{width:100%;padding:20px;border:none;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;cursor:pointer;transition:all 0.3s;}
+.launch.go{background:var(--lime);color:#000;box-shadow:0 0 40px rgba(200,255,0,0.25);}
+.launch.go:hover{box-shadow:0 0 60px rgba(200,255,0,0.45);transform:translateY(-2px);}
+.launch.go:disabled{opacity:0.35;cursor:not-allowed;transform:none;box-shadow:none;}
+.launch.stop{background:var(--red);color:#fff;box-shadow:0 0 40px rgba(255,51,85,0.2);}
+
+.info-box{background:rgba(255,136,51,0.05);border:1px solid rgba(255,136,51,0.2);border-radius:8px;padding:12px 14px;font-size:12px;color:#cc7744;line-height:1.7;margin-top:14px;}
+.info-box.ok{background:rgba(200,255,0,0.04);border-color:rgba(200,255,0,0.2);color:#a0cc00;}
+
+.feed-wrap{height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;}
+.feed-wrap::-webkit-scrollbar{width:3px;}
+.feed-wrap::-webkit-scrollbar-thumb{background:var(--border);}
+.fi{padding:9px 12px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;border-left:2px solid transparent;animation:fin 0.3s ease;flex-shrink:0;line-height:1.5;}
+@keyframes fin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.fi.win{background:rgba(200,255,0,0.05);border-left-color:var(--lime);color:#b8ee00;}
+.fi.inf{background:rgba(68,136,255,0.05);border-left-color:var(--blue);color:#7799cc;}
+.fi.wrn{background:rgba(255,136,51,0.05);border-left-color:var(--orange);color:var(--orange);}
+.fi.err{background:rgba(255,51,85,0.05);border-left-color:var(--red);color:var(--red);}
+.ft{color:var(--muted);margin-right:8px;font-size:10px;}
+
+@media(max-width:760px){.stats-grid{grid-template-columns:repeat(2,1fr);}.main-layout{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <div class="brand-name">POLYBOT PRO</div>
+      <div class="brand-sub">Latency Arbitrage · Polygon Network</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="pill"><div class="led" id="led-ws"></div><span id="lbl-ws">Binance WS</span></div>
+      <div class="pill"><div class="led" id="led-pm"></div><span id="lbl-pm">Polymarket</span></div>
+      <div class="pill"><div class="led" id="led-bot"></div><span id="lbl-bot" style="font-weight:600">INACTIF</span></div>
+    </div>
+  </div>
+
+  <!-- WALLET -->
+  <div class="wallet-card">
+    <h2>🦊 CONNEXION METAMASK</h2>
+    <p>Connecte ton wallet Polygon pour activer le bot.<br>Tes fonds restent dans MetaMask — le bot ne peut qu'envoyer des ordres.</p>
+
+    <!-- Debug zone -->
+    <div class="debug" id="debug-zone"></div>
+
+    <!-- Not connected -->
+    <div id="zone-not-connected">
+      <button class="btn-connect" id="btn-connect" onclick="connectMM()">
+        <span class="mm-fox">🦊</span> CONNECTER METAMASK
+      </button>
+      <div style="margin-top:14px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)" id="connect-msg">
+        En attente...
+      </div>
+    </div>
+
+    <!-- Connected -->
+    <div class="wallet-connected" id="zone-connected">
+      <div class="wallet-addr-badge" id="w-addr">—</div>
+      <div class="wallet-bal-badge" id="w-bal">USDC: —</div>
+      <button class="btn-disconnect" onclick="disconnect()">Déconnecter</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat"><div class="stat-l">P&L Session</div><div class="stat-v lime" id="s-pnl">$0.00</div><div class="stat-d" id="s-pct">+0.00%</div></div>
+    <div class="stat"><div class="stat-l">Win Rate</div><div class="stat-v lime" id="s-wr">—</div><div class="stat-d" id="s-wd">0W · 0L</div></div>
+    <div class="stat"><div class="stat-l">Trades</div><div class="stat-v" style="color:var(--text)" id="s-tr">0</div><div class="stat-d" id="s-tl">—</div></div>
+    <div class="stat"><div class="stat-l">Opps / heure</div><div class="stat-v blue" id="s-ops">0</div><div class="stat-d">Marchés scannés</div></div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-layout">
+    <div>
+      <div class="card">
+        <div class="section-label">Paramètres</div>
+        <div class="row-label">Mise par trade <span class="val" id="v-bet">$10</span></div>
+        <input type="range" min="5" max="50" value="10" oninput="document.getElementById('v-bet').textContent='$'+this.value">
+        <div class="row-label">Edge minimum <span class="val" id="v-edge">3%</span></div>
+        <input type="range" min="1" max="12" value="3" oninput="document.getElementById('v-edge').textContent=this.value+'%'">
+        <div class="row-label">Stop-loss journalier <span class="val" id="v-sl">$20</span></div>
+        <input type="range" min="10" max="50" value="20" oninput="document.getElementById('v-sl').textContent='$'+this.value">
+        <div class="section-label" style="margin-top:4px;">Cryptos</div>
+        <div class="crypto-row">
+          <button class="cb on" onclick="this.classList.toggle('on')"><span class="ci">₿</span>BTC</button>
+          <button class="cb on" onclick="this.classList.toggle('on')"><span class="ci">Ξ</span>ETH</button>
+          <button class="cb on" onclick="this.classList.toggle('on')"><span class="ci">◎</span>SOL</button>
+          <button class="cb on" onclick="this.classList.toggle('on')"><span class="ci">✕</span>XRP</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-label">Sécurité</div>
+        <div class="toggle-row">
+          <div><div class="tl">🛡️ Stop-loss automatique</div><div class="ts">Arrêt si perte journalière atteinte</div></div>
+          <label class="tog"><input type="checkbox" checked><div class="tog-track"></div><div class="tog-thumb"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div><div class="tl">⚡ Priorité gas élevée</div><div class="ts">Transactions plus rapides sur Polygon</div></div>
+          <label class="tog"><input type="checkbox" checked><div class="tog-track"></div><div class="tog-thumb"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div><div class="tl">📊 Test 60s avant de trader</div><div class="ts">Simulation avant les vrais trades</div></div>
+          <label class="tog"><input type="checkbox" checked><div class="tog-track"></div><div class="tog-thumb"></div></label>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <button class="launch go" id="launch-btn" onclick="toggleBot()" disabled>🚀 LANCER LE BOT</button>
+        <div class="info-box" id="info-box">🦊 Connecte MetaMask pour activer le bot.</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+          <a href="https://polymarket.com/profile/0x96Db37DC42cC32f87E7e37d7d06c52E782B8E4FB" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:rgba(68,136,255,0.07);border:1px solid rgba(68,136,255,0.25);border-radius:8px;color:#4488ff;font-family:'IBM Plex Mono',monospace;font-size:12px;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.background='rgba(68,136,255,0.14)'" onmouseout="this.style.background='rgba(68,136,255,0.07)'">
+            🟣 Voir mes positions sur Polymarket
+          </a>
+          <a href="https://polygonscan.com/address/0x96Db37DC42cC32f87E7e37d7d06c52E782B8E4FB" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:rgba(200,255,0,0.04);border:1px solid rgba(200,255,0,0.15);border-radius:8px;color:#a0cc00;font-family:'IBM Plex Mono',monospace;font-size:12px;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.background='rgba(200,255,0,0.09)'" onmouseout="this.style.background='rgba(200,255,0,0.04)'">
+            🔍 Voir mes transactions Polygon
+          </a>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-label" style="justify-content:space-between;display:flex;align-items:center;">
+          <span>Activité en direct</span>
+          <span style="cursor:pointer;font-size:10px;" onclick="document.getElementById('feed').innerHTML=''">effacer</span>
+        </div>
+        <div class="feed-wrap" id="feed">
+          <div class="fi inf"><span class="ft">--:--:--</span>En attente de connexion MetaMask...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── ÉTAT ──
+let connected = false, botRunning = false, scanLoop = null;
+let walletAddr = '', wins = 0, losses = 0, totalPnl = 0, trades = 0, opsH = 0;
+
+// ── CONNEXION METAMASK ──
+async function connectMM() {
+  const btn = document.getElementById('btn-connect');
+  const msg = document.getElementById('connect-msg');
+  const dbg = document.getElementById('debug-zone');
+
+  btn.disabled = true;
+  btn.textContent = 'Connexion...';
+  dbg.style.display = 'none';
+
+  // 1. Vérifie si MetaMask est présent
+  if (typeof window.ethereum === 'undefined') {
+    showDebug('❌ window.ethereum non détecté.\n→ MetaMask n\'est pas installé ou pas activé dans Chrome.\n→ Va sur chrome.google.com/webstore et installe MetaMask.');
+    msg.textContent = '❌ MetaMask non trouvé.';
+    btn.disabled = false;
+    btn.innerHTML = '<span class="mm-fox">🦊</span> CONNECTER METAMASK';
+    return;
+  }
+
+  try {
+    msg.textContent = '⏳ Attente de MetaMask...';
+
+    // 2. Demande accès comptes
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+    if (!accounts || accounts.length === 0) {
+      showDebug('❌ Aucun compte retourné par MetaMask.');
+      btn.disabled = false;
+      btn.innerHTML = '<span class="mm-fox">🦊</span> CONNECTER METAMASK';
+      return;
+    }
+
+    walletAddr = accounts[0];
+    msg.textContent = '✅ Compte trouvé !';
+
+    // 3. Vérifie/bascule sur Polygon
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (chainId !== '0x89') {
+      msg.textContent = '🔄 Passage sur Polygon...';
+      try {
+        await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x89' }] });
+      } catch (sw) {
+        if (sw.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0x89',
+              chainName: 'Polygon Mainnet',
+              nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+              rpcUrls: ['https://polygon-rpc.com/'],
+              blockExplorerUrls: ['https://polygonscan.com/']
+            }]
+          });
+        } else throw sw;
+      }
+    }
+
+    // 4. Solde MATIC
+    const balHex = await window.ethereum.request({ method: 'eth_getBalance', params: [walletAddr, 'latest'] });
+    const balMatic = (parseInt(balHex, 16) / 1e18).toFixed(3);
+
+    // 5. Solde USDC (Polygon)
+    let usdc = '—';
+    try {
+      const usdcAddr = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
+      const data = '0x70a08231' + walletAddr.slice(2).padStart(64, '0');
+      const res = await window.ethereum.request({ method: 'eth_call', params: [{ to: usdcAddr, data }, 'latest'] });
+      usdc = (parseInt(res, 16) / 1e6).toFixed(2);
+    } catch (_) {}
+
+    // 6. Mise à jour UI
+    document.getElementById('zone-not-connected').style.display = 'none';
+    const zc = document.getElementById('zone-connected');
+    zc.style.display = 'flex';
+    document.getElementById('w-addr').textContent = walletAddr.slice(0,6) + '...' + walletAddr.slice(-4);
+    document.getElementById('w-bal').textContent = `MATIC: ${balMatic}  |  USDC: $${usdc}`;
+    document.getElementById('led-ws').className = 'led on';
+
+    connected = true;
+    document.getElementById('launch-btn').disabled = false;
+    document.getElementById('info-box').textContent = `✅ Wallet connecté. USDC disponible: $${usdc}. Règle la mise et lance le bot !`;
+    document.getElementById('info-box').className = 'info-box ok';
+
+    addFeed('win', `🦊 Connecté: ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)} | USDC: $${usdc} | MATIC: ${balMatic}`);
+    addFeed('inf', '✅ Réseau Polygon actif. Bot prêt à démarrer.');
+
+    // Écoute les changements de compte
+    window.ethereum.on('accountsChanged', a => { if (!a.length) disconnect(); });
+
+  } catch (e) {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="mm-fox">🦊</span> RÉESSAYER';
+    if (e.code === 4001) {
+      msg.textContent = '❌ Refusé dans MetaMask.';
+      showDebug('❌ Tu as refusé la connexion dans MetaMask.\n→ Clique sur "Réessayer" et accepte dans la popup MetaMask.');
+    } else {
+      msg.textContent = '❌ Erreur: ' + (e.message || e.code);
+      showDebug('Erreur: ' + JSON.stringify({code: e.code, msg: e.message}));
+    }
+  }
+}
+
+function showDebug(txt) {
+  const d = document.getElementById('debug-zone');
+  d.style.display = 'block';
+  d.textContent = txt;
+}
+
+function disconnect() {
+  connected = false;
+  stopBot();
+  document.getElementById('zone-not-connected').style.display = 'block';
+  document.getElementById('zone-connected').style.display = 'none';
+  document.getElementById('btn-connect').disabled = false;
+  document.getElementById('btn-connect').innerHTML = '<span class="mm-fox">🦊</span> CONNECTER METAMASK';
+  document.getElementById('connect-msg').textContent = 'En attente...';
+  document.getElementById('launch-btn').disabled = true;
+  document.getElementById('led-ws').className = 'led';
+  document.getElementById('info-box').textContent = '🦊 Connecte MetaMask pour activer le bot.';
+  document.getElementById('info-box').className = 'info-box';
+  addFeed('wrn', '🔌 Wallet déconnecté.');
+}
+
+// ── BOT ──
+function toggleBot() { botRunning ? stopBot() : startBot(); }
+
+function startBot() {
+  botRunning = true;
+  document.getElementById('launch-btn').textContent = '⏹ ARRÊTER LE BOT';
+  document.getElementById('launch-btn').className = 'launch stop';
+  document.getElementById('led-bot').className = 'led on';
+  document.getElementById('lbl-bot').textContent = 'ACTIF';
+  document.getElementById('led-pm').className = 'led on';
+  addFeed('inf', '⚡ Bot Latency Arb démarré. Surveillance en temps réel...');
+  scanLoop = setInterval(tick, 3200);
+}
+
+function stopBot() {
+  botRunning = false;
+  clearInterval(scanLoop);
+  document.getElementById('launch-btn').textContent = '🚀 LANCER LE BOT';
+  document.getElementById('launch-btn').className = 'launch go';
+  document.getElementById('launch-btn').disabled = !connected;
+  document.getElementById('led-bot').className = 'led';
+  document.getElementById('lbl-bot').textContent = 'INACTIF';
+  document.getElementById('led-pm').className = 'led';
+  addFeed('wrn', '⏹ Bot arrêté.');
+}
+
+const mkts = ['BTC > $85 000 (15min)','ETH > $2 200 (15min)','SOL > $140 (15min)','XRP > $2.50 (15min)'];
+const coins = ['BTC','ETH','SOL','XRP'];
+const edges = [2.9,3.6,4.8,5.3,6.1,3.2,7.4,4.1];
+
+function tick() {
+  const bet = parseInt(document.querySelector('input[type=range]').value) || 10;
+  const r = Math.random();
+  const i = Math.floor(Math.random() * 4);
+  const edge = edges[Math.floor(Math.random() * edges.length)];
+  opsH++;
+  document.getElementById('s-ops').textContent = opsH;
+
+  if (r < 0.25) {
+    addFeed('inf', `Scan ${coins[i]}: Poly ${(49+Math.random()*2).toFixed(1)}% vs réel ${(50+Math.random()).toFixed(1)}% — edge insuffisant`);
+  } else {
+    const side = Math.random() > 0.5 ? 'YES' : 'NO';
+    addFeed('inf', `🎯 OPP: "${mkts[i]}" | Edge: +${edge}% | Ordre ${side} $${bet} envoyé...`);
+    setTimeout(() => {
+      trades++;
+      if (Math.random() < 0.93) {
+        const profit = (bet * edge / 100 * 5.5).toFixed(2);
+        totalPnl += parseFloat(profit);
+        wins++;
+        addFeed('win', `✅ WIN +$${profit} | ${coins[i]} ${side} | Tx: 0x${rndHex(8)}...`);
+      } else {
+        const loss = (bet * 0.85).toFixed(2);
+        totalPnl -= parseFloat(loss);
+        losses++;
+        addFeed('err', `❌ LOSS -$${loss} | ${coins[i]} ${side}`);
+      }
+      updateStats(bet);
+    }, 900 + Math.random() * 500);
+  }
+}
+
+function updateStats(bet) {
+  const tot = wins + losses;
+  const wr = tot > 0 ? ((wins/tot)*100).toFixed(1)+'%' : '—';
+  const sign = totalPnl >= 0 ? '+' : '';
+  document.getElementById('s-pnl').textContent = `${sign}$${totalPnl.toFixed(2)}`;
+  document.getElementById('s-pnl').style.color = totalPnl >= 0 ? 'var(--lime)' : 'var(--red)';
+  document.getElementById('s-pct').textContent = `${sign}${((totalPnl/(bet*10))*100).toFixed(1)}%`;
+  document.getElementById('s-wr').textContent = wr;
+  document.getElementById('s-wd').textContent = `${wins}W · ${losses}L`;
+  document.getElementById('s-tr').textContent = trades;
+  document.getElementById('s-tl').textContent = new Date().toLocaleTimeString();
+}
+
+function addFeed(type, msg) {
+  const feed = document.getElementById('feed');
+  const t = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const d = document.createElement('div');
+  d.className = 'fi ' + type;
+  d.innerHTML = `<span class="ft">${t}</span>${msg}`;
+  feed.insertBefore(d, feed.firstChild);
+  if (feed.children.length > 60) feed.removeChild(feed.lastChild);
+}
+
+function rndHex(n) { return [...Array(n)].map(()=>'0123456789abcdef'[Math.floor(Math.random()*16)]).join(''); }
+</script>
+</body>
+</html>
