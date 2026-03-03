@@ -301,14 +301,22 @@ async function connectMM() {
     const balHex = await window.ethereum.request({ method: 'eth_getBalance', params: [walletAddr, 'latest'] });
     const balMatic = (parseInt(balHex, 16) / 1e18).toFixed(3);
 
-    // 5. Solde USDC (Polygon)
-    let usdc = '—';
-    try {
-      const usdcAddr = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
-      const data = '0x70a08231' + walletAddr.slice(2).padStart(64, '0');
-      const res = await window.ethereum.request({ method: 'eth_call', params: [{ to: usdcAddr, data }, 'latest'] });
-      usdc = (parseInt(res, 16) / 1e6).toFixed(2);
-    } catch (_) {}
+    // 5. Solde USDC (Polygon) — verifie les 2 contrats
+    let usdc = '0.00';
+    let totalUsdc = 0;
+    const usdcContracts = [
+      '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+      '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+    ];
+    for (const usdcAddr of usdcContracts) {
+      try {
+        const data = '0x70a08231' + walletAddr.slice(2).padStart(64, '0');
+        const res = await window.ethereum.request({ method: 'eth_call', params: [{ to: usdcAddr, data }, 'latest'] });
+        const val = parseInt(res, 16) / 1e6;
+        if (!isNaN(val) && val > 0) totalUsdc += val;
+      } catch (_) {}
+    }
+    usdc = totalUsdc > 0 ? totalUsdc.toFixed(2) : '0.00';
 
     // 6. Mise à jour UI
     document.getElementById('zone-not-connected').style.display = 'none';
