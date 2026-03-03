@@ -301,37 +301,27 @@ async function connectMM() {
     const balHex = await window.ethereum.request({ method: 'eth_getBalance', params: [walletAddr, 'latest'] });
     const balMatic = (parseInt(balHex, 16) / 1e18).toFixed(3);
 
-    // 5. Solde USDC — lecture directe RPC public Polygon
+    // 5. Solde USDC — via window.ethereum directement (pas de CORS)
     let usdc = '0.00';
-    try {
-      const usdcAddr = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359';
-      const paddedAddr = walletAddr.slice(2).toLowerCase().padStart(64, '0');
-      const data = '0x70a08231' + paddedAddr;
-      const rpcRes = await fetch('https://polygon-rpc.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_call', params: [{ to: usdcAddr, data: data }, 'latest'], id: 1 })
-      });
-      const rpcJson = await rpcRes.json();
-      const raw = parseInt(rpcJson.result, 16);
-      if (!isNaN(raw)) usdc = (raw / 1e6).toFixed(2);
-    } catch (_) {}
-    // Fallback USDC.e
-    if (parseFloat(usdc) === 0) {
+    const usdcList = [
+      '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+      '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+    ];
+    let totalU = 0;
+    for (const ca of usdcList) {
       try {
-        const usdcAddr2 = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
-        const paddedAddr = walletAddr.slice(2).toLowerCase().padStart(64, '0');
-        const data = '0x70a08231' + paddedAddr;
-        const rpcRes = await fetch('https://polygon-rpc.com', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_call', params: [{ to: usdcAddr2, data: data }, 'latest'], id: 2 })
+        const d = '0x70a08231000000000000000000000000' + walletAddr.slice(2).toLowerCase();
+        const r = await window.ethereum.request({
+          method: 'eth_call',
+          params: [{ to: ca, data: d }, 'latest']
         });
-        const rpcJson = await rpcRes.json();
-        const raw = parseInt(rpcJson.result, 16);
-        if (!isNaN(raw) && raw > 0) usdc = (raw / 1e6).toFixed(2);
-      } catch (_) {}
+        if (r && r !== '0x') {
+          const v = parseInt(r, 16) / 1e6;
+          if (!isNaN(v) && v > 0) totalU += v;
+        }
+      } catch(_) {}
     }
+    if (totalU > 0) usdc = totalU.toFixed(2);
 
     // 6. Mise à jour UI
     document.getElementById('zone-not-connected').style.display = 'none';
