@@ -1,0 +1,321 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// https://mozilla.org/MPL/2.0/
+// © PolyBot Pro — SOL Futures Scalper
+
+//@version=5
+indicator("SOL Scalper Pro — Futures", overlay=true, max_labels_count=500, max_lines_count=500)
+
+// ══════════════════════════════════════════════════════════
+// ░░░ INPUTS ░░░
+// ══════════════════════════════════════════════════════════
+
+// ── Trend (EMA) ──
+grpTrend    = "━━ Trend Detection ━━"
+fastLen     = input.int(9,   "Fast EMA",     minval=2, maxval=50,  group=grpTrend)
+midLen      = input.int(21,  "Mid EMA",      minval=5, maxval=100, group=grpTrend)
+slowLen     = input.int(50,  "Slow EMA",     minval=10,maxval=200, group=grpTrend)
+showEMA     = input.bool(true, "Show EMAs",  group=grpTrend)
+
+// ── RSI ──
+grpRSI      = "━━ RSI ━━"
+rsiLen      = input.int(14,   "RSI Length",   minval=2, maxval=50,  group=grpRSI)
+rsiOB       = input.int(70,   "Overbought",   minval=60,maxval=90,  group=grpRSI)
+rsiOS       = input.int(30,   "Oversold",     minval=10,maxval=40,  group=grpRSI)
+
+// ── Bollinger Bands ──
+grpBB       = "━━ Bollinger Bands Squeeze ━━"
+bbLen       = input.int(20,   "BB Length",     minval=5, maxval=50,  group=grpBB)
+bbMult      = input.float(2.0,"BB Multiplier", minval=0.5,maxval=4.0,step=0.1, group=grpBB)
+sqzThresh   = input.float(0.5,"Squeeze Threshold %", minval=0.1, maxval=2.0, step=0.1, group=grpBB, tooltip="BB width % considered a squeeze")
+showBB      = input.bool(false,"Show Bollinger Bands", group=grpBB)
+
+// ── VWAP ──
+grpVWAP     = "━━ VWAP ━━"
+showVWAP    = input.bool(true, "Show VWAP",   group=grpVWAP)
+vwapOffset  = input.float(0.5, "VWAP Band Offset %", minval=0.1, maxval=3.0, step=0.1, group=grpVWAP)
+
+// ── Volume ──
+grpVol      = "━━ Volume Filter ━━"
+volLen      = input.int(20,    "Volume MA Length", minval=5, maxval=50, group=grpVol)
+volMult     = input.float(1.2, "Volume Threshold",minval=0.5,maxval=3.0,step=0.1, group=grpVol, tooltip="Multiplier above avg volume to confirm signal")
+
+// ── Risk Management ──
+grpRisk     = "━━ Risk Management ━━"
+atrLen      = input.int(14,    "ATR Length",     minval=5, maxval=50, group=grpRisk)
+slMult      = input.float(1.5, "Stop Loss (ATR x)", minval=0.5, maxval=5.0, step=0.1, group=grpRisk)
+tpMult      = input.float(2.5, "Take Profit (ATR x)", minval=0.5, maxval=10.0, step=0.1, group=grpRisk)
+showSLTP    = input.bool(true,  "Show SL/TP Levels", group=grpRisk)
+
+// ── Signal Filters ──
+grpFilt     = "━━ Signal Filters ━━"
+reqVolConf  = input.bool(true,  "Require Volume Confirmation", group=grpFilt)
+reqTrendAl  = input.bool(true,  "Require Trend Alignment",     group=grpFilt)
+reqSqueezeR = input.bool(false, "Require BB Squeeze Release",  group=grpFilt)
+cooldownBars= input.int(5,      "Signal Cooldown (bars)",      minval=1, maxval=20, group=grpFilt)
+
+// ── Visual ──
+grpVis      = "━━ Display ━━"
+showLabels  = input.bool(true,  "Show Signal Labels", group=grpVis)
+showDash    = input.bool(true,  "Show Dashboard",     group=grpVis)
+alertsOn    = input.bool(true,  "Enable Alerts",      group=grpVis)
+
+
+// ══════════════════════════════════════════════════════════
+// ░░░ CALCULATIONS ░░░
+// ══════════════════════════════════════════════════════════
+
+// ── EMAs ──
+emaFast = ta.ema(close, fastLen)
+emaMid  = ta.ema(close, midLen)
+emaSlow = ta.ema(close, slowLen)
+
+trendUp   = emaFast > emaMid and emaMid > emaSlow
+trendDown = emaFast < emaMid and emaMid < emaSlow
+
+// ── RSI ──
+rsiVal    = ta.rsi(close, rsiLen)
+rsiLong   = rsiVal < rsiOS or (rsiVal > 40 and rsiVal < 60 and rsiVal > rsiVal[1])
+rsiShort  = rsiVal > rsiOB or (rsiVal > 40 and rsiVal < 60 and rsiVal < rsiVal[1])
+
+// ── Bollinger Bands ──
+bbBasis   = ta.sma(close, bbLen)
+bbDev     = bbMult * ta.stdev(close, bbLen)
+bbUpper   = bbBasis + bbDev
+bbLower   = bbBasis - bbDev
+bbWidth   = (bbUpper - bbLower) / bbBasis * 100
+isSqueeze = bbWidth < sqzThresh
+wasSqueeze= isSqueeze[1] and not isSqueeze  // squeeze just released
+
+// ── VWAP ──
+vwapVal     = ta.vwap(hlc3)
+vwapUpper   = vwapVal * (1 + vwapOffset / 100)
+vwapLower   = vwapVal * (1 - vwapOffset / 100)
+aboveVWAP   = close > vwapVal
+belowVWAP   = close < vwapVal
+
+// ── Volume ──
+volMA       = ta.sma(volume, volLen)
+volSpike    = volume > volMA * volMult
+
+// ── ATR ──
+atrVal      = ta.atr(atrLen)
+
+
+// ══════════════════════════════════════════════════════════
+// ░░░ SIGNAL LOGIC ░░░
+// ══════════════════════════════════════════════════════════
+
+// Cooldown tracking
+var int lastSignalBar = 0
+barsSinceLast = bar_index - lastSignalBar
+
+// ── Core conditions ──
+emaCrossUp   = ta.crossover(emaFast, emaMid)
+emaCrossDown = ta.crossunder(emaFast, emaMid)
+
+// Price action near support/resistance
+nearBBLower = low <= bbLower * 1.002
+nearBBUpper = high >= bbUpper * 0.998
+
+// ── LONG Signal ──
+longCore = emaCrossUp or (nearBBLower and rsiVal < 40) or (close > vwapVal and close[1] <= vwapVal[1])
+longTrend = reqTrendAl ? (emaFast > emaSlow or emaMid > emaSlow) : true
+longVol   = reqVolConf ? volSpike : true
+longSqz   = reqSqueezeR ? wasSqueeze : true
+longRSI   = rsiVal < rsiOB  // not overbought
+
+longSignal = longCore and longTrend and longVol and longSqz and longRSI and barsSinceLast >= cooldownBars
+
+// ── SHORT Signal ──
+shortCore = emaCrossDown or (nearBBUpper and rsiVal > 60) or (close < vwapVal and close[1] >= vwapVal[1])
+shortTrend = reqTrendAl ? (emaFast < emaSlow or emaMid < emaSlow) : true
+shortVol   = reqVolConf ? volSpike : true
+shortSqz   = reqSqueezeR ? wasSqueeze : true
+shortRSI   = rsiVal > rsiOS  // not oversold
+
+shortSignal = shortCore and shortTrend and shortVol and shortSqz and shortRSI and barsSinceLast >= cooldownBars
+
+// Update cooldown
+if longSignal or shortSignal
+    lastSignalBar := bar_index
+
+
+// ══════════════════════════════════════════════════════════
+// ░░░ RISK LEVELS ░░░
+// ══════════════════════════════════════════════════════════
+
+var float entryPrice = na
+var float slLevel    = na
+var float tpLevel    = na
+var bool  isLong     = false
+
+if longSignal
+    entryPrice := close
+    slLevel    := close - atrVal * slMult
+    tpLevel    := close + atrVal * tpMult
+    isLong     := true
+
+if shortSignal
+    entryPrice := close
+    slLevel    := close + atrVal * slMult
+    tpLevel    := close - atrVal * tpMult
+    isLong     := false
+
+
+// ══════════════════════════════════════════════════════════
+// ░░░ SIGNAL SCORING ░░░
+// ══════════════════════════════════════════════════════════
+
+// Score each signal from 1 to 5 stars
+longScore  = 0
+longScore += (trendUp ? 1 : 0)
+longScore += (rsiVal < 40 ? 1 : 0)
+longScore += (volSpike ? 1 : 0)
+longScore += (aboveVWAP ? 1 : 0)
+longScore += (wasSqueeze ? 1 : 0)
+
+shortScore  = 0
+shortScore += (trendDown ? 1 : 0)
+shortScore += (rsiVal > 60 ? 1 : 0)
+shortScore += (volSpike ? 1 : 0)
+shortScore += (belowVWAP ? 1 : 0)
+shortScore += (wasSqueeze ? 1 : 0)
+
+
+// ══════════════════════════════════════════════════════════
+// ░░░ PLOTS ░░░
+// ══════════════════════════════════════════════════════════
+
+// ── EMAs ──
+plot(showEMA ? emaFast : na, "Fast EMA",  color=color.new(#00e5ff, 20), linewidth=1)
+plot(showEMA ? emaMid  : na, "Mid EMA",   color=color.new(#ffab00, 20), linewidth=1)
+plot(showEMA ? emaSlow : na, "Slow EMA",  color=color.new(#ff5252, 20), linewidth=2)
+
+// ── Bollinger Bands ──
+p_bbU = plot(showBB ? bbUpper : na, "BB Upper", color=color.new(#7c4dff, 60))
+p_bbL = plot(showBB ? bbLower : na, "BB Lower", color=color.new(#7c4dff, 60))
+fill(p_bbU, p_bbL, color=color.new(#7c4dff, 92))
+
+// ── VWAP ──
+plot(showVWAP ? vwapVal   : na, "VWAP",       color=color.new(#ffffff, 30), linewidth=2, style=plot.style_stepline)
+plot(showVWAP ? vwapUpper : na, "VWAP Upper",  color=color.new(#ffffff, 80), style=plot.style_circles)
+plot(showVWAP ? vwapLower : na, "VWAP Lower",  color=color.new(#ffffff, 80), style=plot.style_circles)
+
+// ── SL/TP Lines ──
+plot(showSLTP and not na(slLevel) ? slLevel : na, "Stop Loss",   color=color.new(#ff5252, 40), linewidth=1, style=plot.style_linebr)
+plot(showSLTP and not na(tpLevel) ? tpLevel : na, "Take Profit", color=color.new(#00e676, 40), linewidth=1, style=plot.style_linebr)
+
+// ── Signal Background ──
+bgcolor(longSignal  ? color.new(#00e676, 88) : na, title="Long BG")
+bgcolor(shortSignal ? color.new(#ff5252, 88) : na, title="Short BG")
+
+// ── Squeeze Indicator ──
+bgcolor(isSqueeze ? color.new(#ffab00, 93) : na, title="Squeeze BG")
+
+// ── Signal Arrows ──
+plotshape(longSignal,  "LONG",  shape.triangleup,   location.belowbar, color.new(#00e676, 0), size=size.small)
+plotshape(shortSignal, "SHORT", shape.triangledown,  location.abovebar, color.new(#ff5252, 0), size=size.small)
+
+
+// ══════════════════════════════════════════════════════════
+// ░░░ LABELS ░░░
+// ══════════════════════════════════════════════════════════
+
+if showLabels and longSignal
+    stars = longScore >= 4 ? "★★★★" : longScore >= 3 ? "★★★" : longScore >= 2 ? "★★" : "★"
+    lbl = label.new(bar_index, low - atrVal * 0.5,
+         "LONG " + stars + "\nEntry: " + str.tostring(close, "#.##") +
+         "\nSL: " + str.tostring(slLevel, "#.##") +
+         "\nTP: " + str.tostring(tpLevel, "#.##") +
+         "\nR:R 1:" + str.tostring(tpMult/slMult, "#.#"),
+         style=label.style_label_up,
+         color=color.new(#00e676, 20),
+         textcolor=color.white,
+         size=size.small)
+
+if showLabels and shortSignal
+    stars = shortScore >= 4 ? "★★★★" : shortScore >= 3 ? "★★★" : shortScore >= 2 ? "★★" : "★"
+    lbl = label.new(bar_index, high + atrVal * 0.5,
+         "SHORT " + stars + "\nEntry: " + str.tostring(close, "#.##") +
+         "\nSL: " + str.tostring(slLevel, "#.##") +
+         "\nTP: " + str.tostring(tpLevel, "#.##") +
+         "\nR:R 1:" + str.tostring(tpMult/slMult, "#.#"),
+         style=label.style_label_down,
+         color=color.new(#ff5252, 20),
+         textcolor=color.white,
+         size=size.small)
+
+
+// ══════════════════════════════════════════════════════════
+// ░░░ DASHBOARD TABLE ░░░
+// ══════════════════════════════════════════════════════════
+
+if showDash and barstate.islast
+    var table dash = table.new(position.top_right, 2, 10,
+         bgcolor=color.new(#1a1a2e, 10),
+         border_color=color.new(#333355, 0),
+         border_width=1,
+         frame_color=color.new(#00e5ff, 30),
+         frame_width=2)
+
+    table.cell(dash, 0, 0, "SOL SCALPER PRO", text_color=#00e5ff, text_size=size.normal, bgcolor=color.new(#0a0a1a, 0))
+    table.cell(dash, 1, 0, "◎ SOLANA", text_color=#c8ff00, text_size=size.small, bgcolor=color.new(#0a0a1a, 0))
+
+    // Trend
+    trendTxt  = trendUp ? "▲ BULL" : trendDown ? "▼ BEAR" : "◆ RANGE"
+    trendCol  = trendUp ? #00e676 : trendDown ? #ff5252 : #ffab00
+    table.cell(dash, 0, 1, "Trend",       text_color=#888899, text_size=size.small)
+    table.cell(dash, 1, 1, trendTxt,      text_color=trendCol, text_size=size.small)
+
+    // RSI
+    rsiCol = rsiVal > rsiOB ? #ff5252 : rsiVal < rsiOS ? #00e676 : #ddddee
+    table.cell(dash, 0, 2, "RSI",         text_color=#888899, text_size=size.small)
+    table.cell(dash, 1, 2, str.tostring(rsiVal, "#.1"), text_color=rsiCol, text_size=size.small)
+
+    // BB Width / Squeeze
+    sqzTxt = isSqueeze ? "🔥 SQUEEZE" : str.tostring(bbWidth, "#.2") + "%"
+    sqzCol = isSqueeze ? #ffab00 : #ddddee
+    table.cell(dash, 0, 3, "BB Width",    text_color=#888899, text_size=size.small)
+    table.cell(dash, 1, 3, sqzTxt,        text_color=sqzCol,  text_size=size.small)
+
+    // VWAP position
+    vwapTxt = aboveVWAP ? "Above ▲" : "Below ▼"
+    vwapCol = aboveVWAP ? #00e676 : #ff5252
+    table.cell(dash, 0, 4, "VWAP",        text_color=#888899, text_size=size.small)
+    table.cell(dash, 1, 4, vwapTxt,       text_color=vwapCol, text_size=size.small)
+
+    // Volume
+    volTxt = volSpike ? "🔊 SPIKE" : "Normal"
+    volCol = volSpike ? #c8ff00 : #888899
+    table.cell(dash, 0, 5, "Volume",      text_color=#888899, text_size=size.small)
+    table.cell(dash, 1, 5, volTxt,        text_color=volCol,  text_size=size.small)
+
+    // ATR
+    table.cell(dash, 0, 6, "ATR",         text_color=#888899, text_size=size.small)
+    table.cell(dash, 1, 6, str.tostring(atrVal, "#.3"), text_color=#ddddee, text_size=size.small)
+
+    // Signal
+    sigTxt = longSignal ? "⚡ LONG" : shortSignal ? "⚡ SHORT" : "—"
+    sigCol = longSignal ? #00e676 : shortSignal ? #ff5252 : #555566
+    table.cell(dash, 0, 7, "Signal",      text_color=#888899, text_size=size.small)
+    table.cell(dash, 1, 7, sigTxt,        text_color=sigCol,  text_size=size.small)
+
+    // Score
+    score = longSignal ? longScore : shortSignal ? shortScore : 0
+    scoreTxt = score > 0 ? str.tostring(score) + "/5" : "—"
+    table.cell(dash, 0, 8, "Strength",    text_color=#888899, text_size=size.small)
+    table.cell(dash, 1, 8, scoreTxt,      text_color=#c8ff00, text_size=size.small)
+
+    // R:R
+    table.cell(dash, 0, 9, "R:R",         text_color=#888899, text_size=size.small)
+    table.cell(dash, 1, 9, "1:" + str.tostring(tpMult/slMult, "#.1"), text_color=#00e5ff, text_size=size.small)
+
+
+// ══════════════════════════════════════════════════════════
+// ░░░ ALERTS ░░░
+// ══════════════════════════════════════════════════════════
+
+alertcondition(longSignal,  "SOL Scalper — LONG",  "⚡ SOL LONG Signal | Score: {{plot_0}} | Price: {{close}}")
+alertcondition(shortSignal, "SOL Scalper — SHORT", "⚡ SOL SHORT Signal | Score: {{plot_0}} | Price: {{close}}")
+alertcondition(isSqueeze and not isSqueeze[1], "BB Squeeze Detected", "🔥 Bollinger Squeeze — Breakout imminent on SOL")
+alertcondition(wasSqueeze, "Squeeze Released", "💥 Squeeze Released — SOL breakout in progress")
