@@ -1,9 +1,9 @@
 // This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
 // https://mozilla.org/MPL/2.0/
-// © PolyBot Pro — SOL Futures Scalper V2
+// © PolyBot Pro — SOL Futures Scalper V2 — Single TP Edition (1min)
 
 //@version=5
-strategy("SOL Scalper Pro V2", overlay=true, initial_capital=1000,
+strategy("SOL Scalper Pro V2 — 1TP", overlay=true, initial_capital=1000,
      default_qty_type=strategy.percent_of_equity, default_qty_value=100,
      commission_type=strategy.commission.percent, commission_value=0.06,
      slippage=1, calc_on_every_tick=false,
@@ -14,7 +14,6 @@ strategy("SOL Scalper Pro V2", overlay=true, initial_capital=1000,
 // ░░░ INPUTS ░░░
 // ══════════════════════════════════════════════════════════
 
-// ── Trend (EMA) ──
 grpTrend    = "━━ Trend Detection ━━"
 fastLen     = input.int(8,    "Fast EMA",     minval=2,  maxval=50,  group=grpTrend)
 midLen      = input.int(21,   "Mid EMA",      minval=5,  maxval=100, group=grpTrend)
@@ -22,7 +21,6 @@ slowLen     = input.int(55,   "Slow EMA",     minval=10, maxval=200, group=grpTr
 htfTrend    = input.timeframe("15", "HTF Trend Filter", group=grpTrend, tooltip="Higher timeframe for trend confirmation")
 showEMA     = input.bool(true, "Show EMAs",   group=grpTrend)
 
-// ── Entry Filters ──
 grpEntry    = "━━ Entry Filters ━━"
 rsiLen      = input.int(10,   "RSI Length",    minval=2,  maxval=50,  group=grpEntry)
 rsiOB       = input.int(65,   "Overbought",    minval=55, maxval=90,  group=grpEntry)
@@ -32,23 +30,18 @@ bbMult      = input.float(2.0,"BB Multiplier",  minval=0.5,maxval=4.0, step=0.1,
 volLen      = input.int(20,   "Volume MA Length",minval=5,  maxval=50,  group=grpEntry)
 volMult     = input.float(1.3,"Volume Threshold",minval=0.5,maxval=3.0, step=0.1, group=grpEntry)
 minScore    = input.int(3,    "Min Confluence (1-5)", minval=1, maxval=5, group=grpEntry, tooltip="Minimum score to trigger a signal")
-cooldownBars= input.int(8,    "Signal Cooldown (bars)", minval=1, maxval=30, group=grpEntry)
+cooldownBars= input.int(12,   "Signal Cooldown (bars)", minval=1, maxval=30, group=grpEntry, tooltip="Higher cooldown to avoid overtrade on 1min")
 
-// ── Risk Management ──
 grpRisk     = "━━ Risk Management ━━"
 atrLen      = input.int(14,   "ATR Length",         minval=5,  maxval=50,  group=grpRisk)
-slMult      = input.float(1.2,"Stop Loss (ATR x)",  minval=0.3,maxval=5.0, step=0.1, group=grpRisk)
-tp1Mult     = input.float(1.0,"Take Profit 1 (ATR x)", minval=0.3,maxval=5.0, step=0.1, group=grpRisk)
-tp2Mult     = input.float(2.0,"Take Profit 2 (ATR x)", minval=0.5,maxval=10.0,step=0.1, group=grpRisk)
-useBE       = input.bool(true,"Break-Even at TP1",  group=grpRisk, tooltip="Move SL to entry + small offset after TP1 is hit")
-useTrail    = input.bool(true,"Trailing Stop after TP1", group=grpRisk)
-trailMult   = input.float(0.8,"Trail Distance (ATR x)", minval=0.2,maxval=3.0, step=0.1, group=grpRisk)
+slMult      = input.float(1.0,"Stop Loss (ATR x)",  minval=0.3,maxval=5.0, step=0.1, group=grpRisk, tooltip="Tighter SL for 1min scalping")
+tpMult      = input.float(0.8,"Take Profit (ATR x)", minval=0.3,maxval=5.0, step=0.1, group=grpRisk, tooltip="Single TP — closer target = higher winrate")
+useTrail    = input.bool(true,"Trailing Stop", group=grpRisk)
+trailMult   = input.float(0.5,"Trail Distance (ATR x)", minval=0.1,maxval=3.0, step=0.1, group=grpRisk)
 
-// ── Backtest ──
 grpBT       = "━━ Backtest ━━"
 daysBack    = input.int(10,   "Backtest Window (days)", minval=1, maxval=365, group=grpBT)
 
-// ── Display ──
 grpVis      = "━━ Display ━━"
 showLines   = input.bool(true, "Show Entry/SL/TP Lines", group=grpVis)
 lineLenBars = input.int(15,    "Line Length (bars)",      minval=3, maxval=50, group=grpVis)
@@ -61,11 +54,9 @@ showDash    = input.bool(true, "Show Dashboard",           group=grpVis)
 // ░░░ CALCULATIONS ░░░
 // ══════════════════════════════════════════════════════════
 
-// ── Backtest Window ──
 startTime = timenow - daysBack * 86400000
 inWindow  = time >= startTime
 
-// ── EMAs ──
 emaFast = ta.ema(close, fastLen)
 emaMid  = ta.ema(close, midLen)
 emaSlow = ta.ema(close, slowLen)
@@ -73,16 +64,13 @@ emaSlow = ta.ema(close, slowLen)
 trendUp   = emaFast > emaMid and emaMid > emaSlow
 trendDown = emaFast < emaMid and emaMid < emaSlow
 
-// ── HTF Trend Filter ──
 htfEmaFast = request.security(syminfo.tickerid, htfTrend, ta.ema(close, fastLen))
 htfEmaSlow = request.security(syminfo.tickerid, htfTrend, ta.ema(close, slowLen))
 htfBull    = htfEmaFast > htfEmaSlow
 htfBear    = htfEmaFast < htfEmaSlow
 
-// ── RSI ──
 rsiVal = ta.rsi(close, rsiLen)
 
-// ── Bollinger Bands ──
 bbBasis   = ta.sma(close, bbLen)
 bbDev     = bbMult * ta.stdev(close, bbLen)
 bbUpper   = bbBasis + bbDev
@@ -90,28 +78,22 @@ bbLower   = bbBasis - bbDev
 bbWidth   = (bbUpper - bbLower) / bbBasis * 100
 isSqueeze = bbWidth < 0.5
 
-// ── VWAP ──
 vwapVal   = ta.vwap(hlc3)
 aboveVWAP = close > vwapVal
 belowVWAP = close < vwapVal
 
-// ── Volume ──
 volMA    = ta.sma(volume, volLen)
 volSpike = volume > volMA * volMult
 
-// ── ATR ──
 atrVal = ta.atr(atrLen)
 
-// ── MACD ──
 [macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
 macdBull = histLine > 0 and histLine > histLine[1]
 macdBear = histLine < 0 and histLine < histLine[1]
 
-// ── Stochastic RSI ──
 stochK = ta.sma(ta.stoch(rsiVal, rsiVal, rsiVal, 14), 3)
 stochD = ta.sma(stochK, 3)
 
-// ── Candle Patterns ──
 bullEngulf = close > open and close[1] < open[1] and close > open[1] and open < close[1]
 bearEngulf = close < open and close[1] > open[1] and close < open[1] and open > close[1]
 pinBarBull = (high - low) > atrVal * 0.8 and (close - low) > (high - low) * 0.65 and (open - low) > (high - low) * 0.65
@@ -122,11 +104,9 @@ pinBarBear = (high - low) > atrVal * 0.8 and (high - close) > (high - low) * 0.6
 // ░░░ CONFLUENCE SCORING ░░░
 // ══════════════════════════════════════════════════════════
 
-// Cooldown tracking
 var int lastSignalBar = 0
 barsSinceLast = bar_index - lastSignalBar
 
-// ── Long Score (0-5) ──
 longScore = 0
 longScore += emaFast > emaMid and emaMid > emaSlow ? 1 : 0
 longScore += close > vwapVal ? 1 : 0
@@ -134,7 +114,6 @@ longScore += rsiVal > rsiOS and rsiVal < 55 ? 1 : 0
 longScore += macdBull or histLine > histLine[1] ? 1 : 0
 longScore += stochK < 25 or ta.crossover(stochK, stochD) ? 1 : 0
 
-// ── Short Score (0-5) ──
 shortScore = 0
 shortScore += emaFast < emaMid and emaMid < emaSlow ? 1 : 0
 shortScore += close < vwapVal ? 1 : 0
@@ -147,14 +126,12 @@ shortScore += stochK > 75 or ta.crossunder(stochK, stochD) ? 1 : 0
 // ░░░ SIGNAL LOGIC ░░░
 // ══════════════════════════════════════════════════════════
 
-// ── Entry Triggers ──
 emaCrossUp   = ta.crossover(emaFast, emaMid)
 emaCrossDown = ta.crossunder(emaFast, emaMid)
 
 longTrigger  = emaCrossUp or (low <= bbLower * 1.002) or bullEngulf or pinBarBull
 shortTrigger = emaCrossDown or (high >= bbUpper * 0.998) or bearEngulf or pinBarBear
 
-// ── Final Signals ──
 longSignal  = longTrigger and longScore >= minScore and htfBull and volSpike and barsSinceLast >= cooldownBars and inWindow
 shortSignal = shortTrigger and shortScore >= minScore and htfBear and volSpike and barsSinceLast >= cooldownBars and inWindow
 
@@ -163,117 +140,87 @@ if longSignal or shortSignal
 
 
 // ══════════════════════════════════════════════════════════
-// ░░░ STRATEGY EXECUTION ░░░
+// ░░░ STRATEGY EXECUTION — SINGLE TP ░░░
 // ══════════════════════════════════════════════════════════
 
 var float entryPrice = na
-var bool  tp1Hit     = false
+var float trailSL    = na
 
 // ── LONG Entry ──
 if longSignal and strategy.position_size <= 0
     strategy.close_all("Flip Long")
     entryPrice := close
-    tp1Hit     := false
-    strategy.entry("L1", strategy.long, qty=strategy.equity * 0.5 / close)
-    strategy.entry("L2", strategy.long, qty=strategy.equity * 0.5 / close)
+    trailSL    := close - atrVal * slMult
+    strategy.entry("LONG", strategy.long)
 
 // ── LONG Exit Management ──
 if strategy.position_size > 0
-    sl  = entryPrice - atrVal * slMult
-    tp1 = entryPrice + atrVal * tp1Mult
-    tp2 = entryPrice + atrVal * tp2Mult
-
-    if high >= tp1
-        tp1Hit := true
-    if tp1Hit and useBE
-        sl := math.max(sl, entryPrice + atrVal * 0.1)
-    if tp1Hit and useTrail
-        sl := math.max(sl, close - atrVal * trailMult)
-
-    strategy.exit("TP1", "L1", limit=tp1, stop=sl)
-    strategy.exit("TP2", "L2", limit=tp2, stop=sl)
+    sl = entryPrice - atrVal * slMult
+    tp = entryPrice + atrVal * tpMult
+    if useTrail
+        trailSL := math.max(trailSL, close - atrVal * trailMult)
+        sl := math.max(sl, trailSL)
+    strategy.exit("EXIT_L", "LONG", limit=tp, stop=sl)
 
 // ── SHORT Entry ──
 if shortSignal and strategy.position_size >= 0
     strategy.close_all("Flip Short")
     entryPrice := close
-    tp1Hit     := false
-    strategy.entry("S1", strategy.short, qty=strategy.equity * 0.5 / close)
-    strategy.entry("S2", strategy.short, qty=strategy.equity * 0.5 / close)
+    trailSL    := close + atrVal * slMult
+    strategy.entry("SHORT", strategy.short)
 
 // ── SHORT Exit Management ──
 if strategy.position_size < 0
-    sl  = entryPrice + atrVal * slMult
-    tp1 = entryPrice - atrVal * tp1Mult
-    tp2 = entryPrice - atrVal * tp2Mult
-
-    if low <= tp1
-        tp1Hit := true
-    if tp1Hit and useBE
-        sl := math.min(sl, entryPrice - atrVal * 0.1)
-    if tp1Hit and useTrail
-        sl := math.min(sl, close + atrVal * trailMult)
-
-    strategy.exit("TP1", "S1", limit=tp1, stop=sl)
-    strategy.exit("TP2", "S2", limit=tp2, stop=sl)
+    sl = entryPrice + atrVal * slMult
+    tp = entryPrice - atrVal * tpMult
+    if useTrail
+        trailSL := math.min(trailSL, close + atrVal * trailMult)
+        sl := math.min(sl, trailSL)
+    strategy.exit("EXIT_S", "SHORT", limit=tp, stop=sl)
 
 
 // ══════════════════════════════════════════════════════════
 // ░░░ VISUAL — LINES ON CHART ░░░
 // ══════════════════════════════════════════════════════════
 
-// Colors
 colEntry = color.new(#ffffff, 0)
 colSL    = color.new(#ff5252, 0)
-colTP1   = color.new(#00e676, 0)
-colTP2   = color.new(#00bfa5, 0)
+colTP    = color.new(#00e676, 0)
 
 if showLines and (longSignal or shortSignal)
     isL = longSignal
     e   = close
-    s   = isL ? e - atrVal * slMult  : e + atrVal * slMult
-    t1  = isL ? e + atrVal * tp1Mult : e - atrVal * tp1Mult
-    t2  = isL ? e + atrVal * tp2Mult : e - atrVal * tp2Mult
+    s   = isL ? e - atrVal * slMult : e + atrVal * slMult
+    t   = isL ? e + atrVal * tpMult : e - atrVal * tpMult
     x1  = bar_index
     x2  = bar_index + lineLenBars
 
-    // Main levels
-    line.new(x1, e,  x2, e,  color=colEntry, width=2, style=line.style_solid)
-    line.new(x1, s,  x2, s,  color=colSL,    width=2, style=line.style_dashed)
-    line.new(x1, t1, x2, t1, color=colTP1,   width=2, style=line.style_dashed)
-    line.new(x1, t2, x2, t2, color=colTP2,   width=1, style=line.style_dotted)
+    line.new(x1, e, x2, e, color=colEntry, width=2, style=line.style_solid)
+    line.new(x1, s, x2, s, color=colSL,    width=2, style=line.style_dashed)
+    line.new(x1, t, x2, t, color=colTP,    width=2, style=line.style_dashed)
 
-    // Zone fills
-    linefill.new(line.new(x1, e, x2, e, color=color.new(colSL, 100)),  line.new(x1, s,  x2, s,  color=color.new(colSL, 100)),  color=color.new(#ff5252, 88))
-    linefill.new(line.new(x1, e, x2, e, color=color.new(colTP1, 100)), line.new(x1, t1, x2, t1, color=color.new(colTP1, 100)), color=color.new(#00e676, 90))
-    linefill.new(line.new(x1, t1, x2, t1, color=color.new(colTP2, 100)), line.new(x1, t2, x2, t2, color=color.new(colTP2, 100)), color=color.new(#00bfa5, 92))
+    linefill.new(line.new(x1, e, x2, e, color=color.new(#ff5252, 100)), line.new(x1, s, x2, s, color=color.new(#ff5252, 100)), color=color.new(#ff5252, 88))
+    linefill.new(line.new(x1, e, x2, e, color=color.new(#00e676, 100)), line.new(x1, t, x2, t, color=color.new(#00e676, 100)), color=color.new(#00e676, 90))
 
 
 // ══════════════════════════════════════════════════════════
 // ░░░ PLOTS ░░░
 // ══════════════════════════════════════════════════════════
 
-// ── EMAs ──
 plot(showEMA ? emaFast : na, "Fast EMA",  color=color.new(#00e5ff, 20), linewidth=1)
 plot(showEMA ? emaMid  : na, "Mid EMA",   color=color.new(#ffab00, 20), linewidth=1)
 plot(showEMA ? emaSlow : na, "Slow EMA",  color=color.new(#ff5252, 20), linewidth=2)
 
-// ── Bollinger Bands ──
 p_bbU = plot(showBB ? bbUpper : na, "BB Upper", color=color.new(#7c4dff, 60))
 p_bbL = plot(showBB ? bbLower : na, "BB Lower", color=color.new(#7c4dff, 60))
 fill(p_bbU, p_bbL, color=color.new(#7c4dff, 92))
 
-// ── VWAP ──
 plot(showVWAP ? vwapVal : na, "VWAP", color=color.new(#ffffff, 30), linewidth=2, style=plot.style_stepline)
 
-// ── Signal Arrows ──
 plotshape(longSignal,  "LONG",  shape.triangleup,   location.belowbar, color.new(#00e676, 0), size=size.tiny)
 plotshape(shortSignal, "SHORT", shape.triangledown,  location.abovebar, color.new(#ff5252, 0), size=size.tiny)
 
-// ── Signal bar color ──
 barcolor(longSignal ? color.new(#00e676, 30) : shortSignal ? color.new(#ff5252, 30) : na)
-
-// ── Squeeze background ──
 bgcolor(isSqueeze ? color.new(#ffab00, 95) : na, title="Squeeze BG")
 
 
@@ -296,11 +243,9 @@ if showDash and (barstate.islastconfirmedhistory or barstate.isrealtime)
     avgL   = losses > 0 ? math.abs(strategy.grossloss / losses) : 0.0
     rr     = avgL != 0 ? avgW / avgL : 0.0
 
-    // Header
-    table.cell(dash, 0, 0, "SOL SCALPER V2",  text_color=color.new(#00e5ff, 0), text_size=size.normal, bgcolor=color.new(#0a0a1a, 0))
+    table.cell(dash, 0, 0, "1TP SCALPER",  text_color=color.new(#00e5ff, 0), text_size=size.normal, bgcolor=color.new(#0a0a1a, 0))
     table.cell(dash, 1, 0, str.tostring(daysBack) + "J", text_color=color.new(#c8ff00, 0), text_size=size.normal, bgcolor=color.new(#0a0a1a, 0))
 
-    // Market state
     trendTxt = trendUp ? "BULL" : trendDown ? "BEAR" : "RANGE"
     trendCol = trendUp ? color.new(#00e676, 0) : trendDown ? color.new(#ff5252, 0) : color.new(#ffab00, 0)
     htfTxt   = htfBull ? "BULL" : htfBear ? "BEAR" : "FLAT"
@@ -311,24 +256,27 @@ if showDash and (barstate.islastconfirmedhistory or barstate.isrealtime)
     table.cell(dash, 0, 2, "HTF (" + htfTrend + ")", text_color=color.new(#888899, 0), text_size=size.small)
     table.cell(dash, 1, 2, htfTxt,        text_color=htfCol,   text_size=size.small)
 
-    // Backtest stats
     table.cell(dash, 0, 3, "──────",      text_color=color.new(#333333, 0), text_size=size.small)
     table.cell(dash, 1, 3, "──────",      text_color=color.new(#333333, 0), text_size=size.small)
 
+    netCol = net >= 0 ? color.new(#00e676, 0) : color.new(#ff5252, 0)
     table.cell(dash, 0, 4, "Net Profit",  text_color=color.new(#888899, 0), text_size=size.small)
-    table.cell(dash, 1, 4, str.tostring(net, "#.##") + "$ (" + str.tostring(pct, "#.#") + "%)", text_color=net >= 0 ? color.new(#00e676, 0) : color.new(#ff5252, 0), text_size=size.small)
+    table.cell(dash, 1, 4, str.tostring(net, "#.##") + "$ (" + str.tostring(pct, "#.#") + "%)", text_color=netCol, text_size=size.small)
 
     table.cell(dash, 0, 5, "Trades",      text_color=color.new(#888899, 0), text_size=size.small)
     table.cell(dash, 1, 5, str.tostring(tot) + "  W:" + str.tostring(wins) + "  L:" + str.tostring(losses), text_color=color.white, text_size=size.small)
 
+    wrCol = wr >= 55 ? color.new(#00e676, 0) : wr >= 45 ? color.new(#ffab00, 0) : color.new(#ff5252, 0)
     table.cell(dash, 0, 6, "Win Rate",    text_color=color.new(#888899, 0), text_size=size.small)
-    table.cell(dash, 1, 6, str.tostring(wr, "#.#") + "%", text_color=wr >= 55 ? color.new(#00e676, 0) : wr >= 45 ? color.new(#ffab00, 0) : color.new(#ff5252, 0), text_size=size.small)
+    table.cell(dash, 1, 6, str.tostring(wr, "#.#") + "%", text_color=wrCol, text_size=size.small)
 
+    pfCol = pf >= 1.5 ? color.new(#00e676, 0) : pf >= 1 ? color.new(#ffab00, 0) : color.new(#ff5252, 0)
     table.cell(dash, 0, 7, "Profit Factor",text_color=color.new(#888899, 0), text_size=size.small)
-    table.cell(dash, 1, 7, str.tostring(pf, "#.##"), text_color=pf >= 1.5 ? color.new(#00e676, 0) : pf >= 1 ? color.new(#ffab00, 0) : color.new(#ff5252, 0), text_size=size.small)
+    table.cell(dash, 1, 7, str.tostring(pf, "#.##"), text_color=pfCol, text_size=size.small)
 
+    rrCol = rr >= 1 ? color.new(#00e676, 0) : color.new(#ff5252, 0)
     table.cell(dash, 0, 8, "Avg R:R",     text_color=color.new(#888899, 0), text_size=size.small)
-    table.cell(dash, 1, 8, str.tostring(rr, "#.##"), text_color=rr >= 1 ? color.new(#00e676, 0) : color.new(#ff5252, 0), text_size=size.small)
+    table.cell(dash, 1, 8, str.tostring(rr, "#.##"), text_color=rrCol, text_size=size.small)
 
     table.cell(dash, 0, 9, "Max DD",      text_color=color.new(#888899, 0), text_size=size.small)
     table.cell(dash, 1, 9, str.tostring(dd, "#.##") + "$", text_color=color.new(#ff5252, 0), text_size=size.small)
@@ -344,6 +292,6 @@ if showDash and (barstate.islastconfirmedhistory or barstate.isrealtime)
 // ░░░ ALERTS ░░░
 // ══════════════════════════════════════════════════════════
 
-alertcondition(longSignal,  "SOL Scalper — LONG",  "SOL LONG | Score: " + str.tostring(longScore) + "/5 | Price: {{close}}")
-alertcondition(shortSignal, "SOL Scalper — SHORT", "SOL SHORT | Score: " + str.tostring(shortScore) + "/5 | Price: {{close}}")
-alertcondition(isSqueeze and not isSqueeze[1], "BB Squeeze Detected", "Bollinger Squeeze on SOL — Breakout imminent")
+alertcondition(longSignal,  "SOL 1TP — LONG",  "SOL LONG | Price: {{close}}")
+alertcondition(shortSignal, "SOL 1TP — SHORT", "SOL SHORT | Price: {{close}}")
+alertcondition(isSqueeze and not isSqueeze[1], "BB Squeeze Detected", "Bollinger Squeeze on SOL")
