@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SOL Scalper Pro — TradingView Indicator</title>
+<title>SOL Scalper Pro V2 — TradingView Strategy</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
 :root {
   --bg:#060608;--s1:#0d0d12;--s2:#13131a;--s3:#1a1a24;
   --border:#252530;--border2:#323240;
-  --lime:#c8ff00;--cyan:#00e5ff;--green:#00e676;--red:#ff5252;--orange:#ffab00;--purple:#7c4dff;
+  --lime:#c8ff00;--cyan:#00e5ff;--green:#00e676;--red:#ff5252;--orange:#ffab00;--purple:#7c4dff;--teal:#00bfa5;
   --text:#dddde8;--muted:#55556a;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -26,6 +26,7 @@ body::before{content:'';position:fixed;inset:0;background-image:
 .logo{font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:4px;background:linear-gradient(135deg,var(--cyan),var(--lime));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .subtitle{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:4px;margin-top:4px;}
 .badge{display:inline-block;margin-top:12px;padding:6px 16px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--cyan);}
+.v2{display:inline-block;margin-left:8px;padding:3px 10px;background:rgba(200,255,0,0.12);border:1px solid rgba(200,255,0,0.3);border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--lime);font-weight:700;letter-spacing:1px;}
 
 /* FEATURES GRID */
 .features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;}
@@ -35,7 +36,7 @@ body::before{content:'';position:fixed;inset:0;background-image:
 .feat-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--text);margin-bottom:6px;}
 .feat-desc{font-size:13px;color:var(--muted);line-height:1.6;}
 
-/* STRATEGY SECTION */
+/* SECTIONS */
 .section{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:28px;margin-bottom:20px;}
 .section-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:var(--cyan);margin-bottom:16px;display:flex;align-items:center;gap:10px;}
 .section-title::after{content:'';flex:1;height:1px;background:var(--border);}
@@ -49,6 +50,7 @@ body::before{content:'';position:fixed;inset:0;background-image:
 .tag.long{background:rgba(0,230,118,0.12);color:var(--green);}
 .tag.short{background:rgba(255,82,82,0.12);color:var(--red);}
 .tag.neutral{background:rgba(85,85,106,0.2);color:var(--muted);}
+.tag.new{background:rgba(200,255,0,0.12);color:var(--lime);}
 
 /* PARAMS */
 .params-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
@@ -56,7 +58,7 @@ body::before{content:'';position:fixed;inset:0;background-image:
 .param-name{font-size:13px;color:var(--text);}
 .param-val{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--lime);font-weight:600;}
 
-/* INSTALL SECTION */
+/* INSTALL */
 .install{background:linear-gradient(135deg,rgba(0,229,255,0.05),rgba(200,255,0,0.03));border:1px solid rgba(0,229,255,0.2);border-radius:14px;padding:32px;margin-bottom:20px;text-align:center;}
 .install h2{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--cyan);margin-bottom:16px;}
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:24px 0;}
@@ -79,22 +81,30 @@ body::before{content:'';position:fixed;inset:0;background-image:
 .tf-tag.best{background:rgba(200,255,0,0.1);color:var(--lime);border:1px solid rgba(200,255,0,0.2);}
 .tf-tag.good{background:rgba(0,229,255,0.08);color:var(--cyan);border:1px solid rgba(0,229,255,0.15);}
 
-/* RISK TABLE */
-.risk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px;}
+/* RISK */
+.risk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:16px;}
 .risk-card{background:var(--s2);border-radius:10px;padding:20px;text-align:center;border:1px solid var(--border);}
-.risk-val{font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;}
+.risk-val{font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;}
 .risk-label{font-size:12px;color:var(--muted);margin-top:6px;}
+
+/* CHANGELOG */
+.changelog{list-style:none;padding:0;}
+.changelog li{padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);display:flex;align-items:center;gap:10px;}
+.changelog li:last-child{border-bottom:none;}
+.cl-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:600;flex-shrink:0;}
+.cl-tag.added{background:rgba(0,230,118,0.12);color:var(--green);}
+.cl-tag.improved{background:rgba(0,229,255,0.12);color:var(--cyan);}
+.cl-tag.changed{background:rgba(255,171,0,0.12);color:var(--orange);}
 
 /* FOOTER */
 .footer{text-align:center;padding:30px 0;border-top:1px solid var(--border);margin-top:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
-.footer a{color:var(--cyan);text-decoration:none;}
 
 @media(max-width:760px){
   .features{grid-template-columns:1fr;}
   .steps{grid-template-columns:repeat(2,1fr);}
   .params-grid{grid-template-columns:1fr;}
   .tf-grid{grid-template-columns:1fr;}
-  .risk-grid{grid-template-columns:1fr;}
+  .risk-grid{grid-template-columns:repeat(2,1fr);}
 }
 </style>
 </head>
@@ -104,115 +114,148 @@ body::before{content:'';position:fixed;inset:0;background-image:
   <!-- HEADER -->
   <div class="header">
     <div class="logo">SOL SCALPER PRO</div>
-    <div class="subtitle">Indicateur TradingView &middot; Scalping Solana Futures</div>
-    <div class="badge">Pine Script v5 &middot; SOLUSDT Perps &middot; Multi-Timeframe</div>
+    <div class="subtitle">Strategy TradingView &middot; Scalping Solana Futures</div>
+    <div class="badge">Pine Script v5 &middot; SOLUSDT Perps &middot; Backtest Enabled</div>
+    <span class="v2">V2</span>
   </div>
 
   <!-- FEATURES -->
   <div class="features">
     <div class="feat">
-      <div class="feat-icon">📊</div>
-      <div class="feat-title">6 Indicateurs Combinés</div>
-      <div class="feat-desc">EMA Triple, RSI, Bollinger Bands Squeeze, VWAP, Volume Spike, ATR — tous fusionnés en signaux clairs.</div>
+      <div class="feat-icon">&#x1F4CA;</div>
+      <div class="feat-title">Confluence Scoring</div>
+      <div class="feat-desc">5 criteres (EMA, VWAP, RSI, MACD, Stoch RSI) notes de 0 a 5. Minimum configurable pour filtrer les signaux faibles.</div>
     </div>
     <div class="feat">
-      <div class="feat-icon">🎯</div>
-      <div class="feat-title">Scoring 1-5 Étoiles</div>
-      <div class="feat-desc">Chaque signal est noté selon la confluence des indicateurs. Plus d'étoiles = plus haute probabilité.</div>
+      <div class="feat-icon">&#x1F4C8;</div>
+      <div class="feat-title">Filtre HTF 15min</div>
+      <div class="feat-desc">Trades uniquement dans le sens de la tendance du 15 minutes. Elimine les signaux contre-tendance.</div>
     </div>
     <div class="feat">
-      <div class="feat-icon">🛡️</div>
-      <div class="feat-title">Risk Management Intégré</div>
-      <div class="feat-desc">Stop Loss et Take Profit automatiques basés sur l'ATR. Ratio R:R configurable directement.</div>
+      <div class="feat-icon">&#x1F6E1;&#xFE0F;</div>
+      <div class="feat-title">Break-Even + Trailing</div>
+      <div class="feat-desc">SL deplace au break-even apres TP1. Trailing stop automatique pour securiser les gains sur TP2.</div>
     </div>
     <div class="feat">
-      <div class="feat-icon">🔥</div>
-      <div class="feat-title">Détection Squeeze</div>
-      <div class="feat-desc">Alerte quand les Bollinger Bands se compriment — signal de breakout imminent sur SOL.</div>
+      <div class="feat-icon">&#x1F3AF;</div>
+      <div class="feat-title">TP1 + TP2 Split</div>
+      <div class="feat-desc">Position divisee 50/50. TP1 rapide pour securiser, TP2 avec trailing pour maximiser les gains.</div>
     </div>
     <div class="feat">
-      <div class="feat-icon">⚡</div>
-      <div class="feat-title">Alertes TradingView</div>
-      <div class="feat-desc">4 alertes configurables : LONG, SHORT, Squeeze détecté, Squeeze relâché. Push/Email/Webhook.</div>
+      <div class="feat-icon">&#x1F56F;&#xFE0F;</div>
+      <div class="feat-title">Candle Patterns</div>
+      <div class="feat-desc">Detection d'engulfing et pin bars comme triggers supplementaires pour des entrees plus precises.</div>
     </div>
     <div class="feat">
-      <div class="feat-icon">📱</div>
-      <div class="feat-title">Dashboard Temps Réel</div>
-      <div class="feat-desc">Tableau de bord intégré au chart : trend, RSI, VWAP, volume, force du signal — tout en un coup d'œil.</div>
+      <div class="feat-icon">&#x1F4CA;</div>
+      <div class="feat-title">Backtest Integre</div>
+      <div class="feat-desc">Mode strategy avec dashboard en temps reel : Win Rate, Profit Factor, R:R, Drawdown — tout sur le chart.</div>
     </div>
+  </div>
+
+  <!-- V2 CHANGELOG -->
+  <div class="section">
+    <div class="section-title">Nouveautes V2</div>
+    <ul class="changelog">
+      <li><span class="cl-tag added">NEW</span> Confluence scoring 0-5 avec seuil minimum configurable</li>
+      <li><span class="cl-tag added">NEW</span> Filtre HTF (15min par defaut) — zero trade contre-tendance</li>
+      <li><span class="cl-tag added">NEW</span> MACD + Stochastic RSI dans le scoring</li>
+      <li><span class="cl-tag added">NEW</span> Detection engulfing + pin bars comme triggers</li>
+      <li><span class="cl-tag added">NEW</span> Break-even automatique apres TP1</li>
+      <li><span class="cl-tag added">NEW</span> Trailing stop apres TP1 (ATR-based)</li>
+      <li><span class="cl-tag added">NEW</span> Split TP1/TP2 (50/50)</li>
+      <li><span class="cl-tag added">NEW</span> Mode strategy() avec backtest complet</li>
+      <li><span class="cl-tag improved">UP</span> Lignes horizontales Entry/SL/TP1/TP2 au lieu de bulles</li>
+      <li><span class="cl-tag improved">UP</span> Zones colorees entre les niveaux (rouge SL, vert TP)</li>
+      <li><span class="cl-tag improved">UP</span> Dashboard avec stats de backtest en temps reel</li>
+      <li><span class="cl-tag changed">FIX</span> SL reduit a 1.2x ATR (etait 1.5x) — meilleur R:R</li>
+      <li><span class="cl-tag changed">FIX</span> Cooldown augmente a 8 bougies — moins de bruit</li>
+    </ul>
   </div>
 
   <!-- STRATEGY -->
   <div class="section">
-    <div class="section-title">Stratégie de Scalping</div>
+    <div class="section-title">Strategie de Scalping V2</div>
     <p style="color:var(--muted);font-size:14px;line-height:1.8;margin-bottom:20px;">
-      L'indicateur combine plusieurs couches d'analyse pour générer des signaux haute probabilité sur les futures Solana (SOLUSDT Perp).
-      Chaque signal nécessite une confluence de conditions avant d'être déclenché.
+      Chaque signal passe par 3 filtres : un <strong style="color:var(--cyan)">trigger</strong> (EMA cross, BB touch, engulfing, pin bar),
+      un <strong style="color:var(--lime)">score de confluence</strong> (minimum 3/5), et un <strong style="color:var(--green)">filtre HTF</strong> (tendance 15min).
     </p>
 
     <table class="sig-table">
       <tr>
-        <th>Condition</th>
+        <th>Critere</th>
         <th>Long</th>
         <th>Short</th>
-        <th>Rôle</th>
+        <th>Type</th>
       </tr>
       <tr>
-        <td>EMA Cross</td>
-        <td><span class="tag long">Fast &gt; Mid</span></td>
-        <td><span class="tag short">Fast &lt; Mid</span></td>
-        <td style="color:var(--muted)">Direction du momentum</td>
-      </tr>
-      <tr>
-        <td>RSI</td>
-        <td><span class="tag long">&lt; 70 (pas OB)</span></td>
-        <td><span class="tag short">&gt; 30 (pas OS)</span></td>
-        <td style="color:var(--muted)">Filtre de surachat/survente</td>
+        <td>EMA Triple</td>
+        <td><span class="tag long">Fast &gt; Mid &gt; Slow</span></td>
+        <td><span class="tag short">Fast &lt; Mid &lt; Slow</span></td>
+        <td><span class="tag new">Score</span></td>
       </tr>
       <tr>
         <td>VWAP</td>
         <td><span class="tag long">Prix &gt; VWAP</span></td>
         <td><span class="tag short">Prix &lt; VWAP</span></td>
-        <td style="color:var(--muted)">Biais institutionnel</td>
+        <td><span class="tag new">Score</span></td>
+      </tr>
+      <tr>
+        <td>RSI</td>
+        <td><span class="tag long">35-55 sweet spot</span></td>
+        <td><span class="tag short">45-65 sweet spot</span></td>
+        <td><span class="tag new">Score</span></td>
+      </tr>
+      <tr>
+        <td>MACD Histogram</td>
+        <td><span class="tag long">Bullish momentum</span></td>
+        <td><span class="tag short">Bearish momentum</span></td>
+        <td><span class="tag new">Score</span></td>
+      </tr>
+      <tr>
+        <td>Stoch RSI</td>
+        <td><span class="tag long">Oversold / Cross up</span></td>
+        <td><span class="tag short">Overbought / Cross down</span></td>
+        <td><span class="tag new">Score</span></td>
+      </tr>
+      <tr>
+        <td>HTF Trend (15min)</td>
+        <td><span class="tag long">EMA Fast &gt; Slow</span></td>
+        <td><span class="tag short">EMA Fast &lt; Slow</span></td>
+        <td><span class="tag neutral">Filtre</span></td>
       </tr>
       <tr>
         <td>Volume</td>
-        <td><span class="tag long">Spike &gt; 1.2x MA</span></td>
-        <td><span class="tag short">Spike &gt; 1.2x MA</span></td>
-        <td style="color:var(--muted)">Confirmation de participation</td>
+        <td><span class="tag long">Spike &gt; 1.3x MA</span></td>
+        <td><span class="tag short">Spike &gt; 1.3x MA</span></td>
+        <td><span class="tag neutral">Filtre</span></td>
       </tr>
       <tr>
-        <td>BB Squeeze</td>
-        <td><span class="tag neutral">Optionnel</span></td>
-        <td><span class="tag neutral">Optionnel</span></td>
-        <td style="color:var(--muted)">Détection de breakout</td>
-      </tr>
-      <tr>
-        <td>Trend (EMA)</td>
-        <td><span class="tag long">Fast &gt; Slow</span></td>
-        <td><span class="tag short">Fast &lt; Slow</span></td>
-        <td style="color:var(--muted)">Alignement de tendance</td>
+        <td>EMA Cross / Engulfing / Pin Bar</td>
+        <td><span class="tag long">Au moins 1</span></td>
+        <td><span class="tag short">Au moins 1</span></td>
+        <td><span class="tag neutral">Trigger</span></td>
       </tr>
     </table>
   </div>
 
   <!-- TIMEFRAMES -->
   <div class="section">
-    <div class="section-title">Timeframes Recommandés</div>
+    <div class="section-title">Timeframes Recommandes</div>
     <div class="tf-grid">
       <div class="tf">
         <div class="tf-name">1 MIN</div>
-        <div class="tf-desc">Scalping ultra-rapide. Beaucoup de signaux, nécessite exécution rapide.</div>
+        <div class="tf-desc">Scalping ultra-rapide. Plus de signaux, execution rapide requise.</div>
         <span class="tf-tag good">AGRESSIF</span>
       </div>
       <div class="tf" style="border-color:var(--lime);">
         <div class="tf-name">3 MIN</div>
-        <div class="tf-desc">Meilleur équilibre signal/bruit. Recommandé pour la majorité des traders.</div>
-        <span class="tf-tag best">RECOMMANDÉ</span>
+        <div class="tf-desc">Meilleur equilibre signal/bruit. Recommande pour le scalping.</div>
+        <span class="tf-tag best">RECOMMANDE</span>
       </div>
       <div class="tf">
         <div class="tf-name">5 MIN</div>
-        <div class="tf-desc">Moins de signaux mais plus fiables. Idéal pour débuter.</div>
+        <div class="tf-desc">Moins de signaux, plus fiables. Ideal pour debuter.</div>
         <span class="tf-tag good">CONSERVATEUR</span>
       </div>
     </div>
@@ -220,36 +263,42 @@ body::before{content:'';position:fixed;inset:0;background-image:
 
   <!-- RISK MANAGEMENT -->
   <div class="section">
-    <div class="section-title">Risk Management</div>
+    <div class="section-title">Risk Management V2</div>
     <div class="risk-grid">
       <div class="risk-card">
-        <div class="risk-val" style="color:var(--red);">1.5x ATR</div>
-        <div class="risk-label">Stop Loss par défaut</div>
+        <div class="risk-val" style="color:var(--red);">1.2x ATR</div>
+        <div class="risk-label">Stop Loss</div>
       </div>
       <div class="risk-card">
-        <div class="risk-val" style="color:var(--green);">2.5x ATR</div>
-        <div class="risk-label">Take Profit par défaut</div>
+        <div class="risk-val" style="color:var(--green);">1.0x ATR</div>
+        <div class="risk-label">Take Profit 1 (50%)</div>
       </div>
       <div class="risk-card">
-        <div class="risk-val" style="color:var(--cyan);">1:1.7</div>
-        <div class="risk-label">Ratio Risk/Reward</div>
+        <div class="risk-val" style="color:var(--teal);">2.0x ATR</div>
+        <div class="risk-label">Take Profit 2 (50%)</div>
+      </div>
+      <div class="risk-card">
+        <div class="risk-val" style="color:var(--cyan);">0.8x ATR</div>
+        <div class="risk-label">Trailing Stop</div>
       </div>
     </div>
     <div style="margin-top:20px;">
-      <div class="section-title" style="font-size:16px;">Paramètres Configurables</div>
+      <div class="section-title" style="font-size:16px;">Parametres Configurables</div>
       <div class="params-grid">
-        <div class="param"><span class="param-name">Fast EMA</span><span class="param-val">9</span></div>
+        <div class="param"><span class="param-name">Fast EMA</span><span class="param-val">8</span></div>
         <div class="param"><span class="param-name">Mid EMA</span><span class="param-val">21</span></div>
-        <div class="param"><span class="param-name">Slow EMA</span><span class="param-val">50</span></div>
-        <div class="param"><span class="param-name">RSI Length</span><span class="param-val">14</span></div>
-        <div class="param"><span class="param-name">RSI Overbought</span><span class="param-val">70</span></div>
-        <div class="param"><span class="param-name">RSI Oversold</span><span class="param-val">30</span></div>
+        <div class="param"><span class="param-name">Slow EMA</span><span class="param-val">55</span></div>
+        <div class="param"><span class="param-name">HTF Trend</span><span class="param-val">15min</span></div>
+        <div class="param"><span class="param-name">RSI Length</span><span class="param-val">10</span></div>
+        <div class="param"><span class="param-name">RSI OB/OS</span><span class="param-val">65 / 35</span></div>
         <div class="param"><span class="param-name">BB Length</span><span class="param-val">20</span></div>
         <div class="param"><span class="param-name">BB Multiplier</span><span class="param-val">2.0</span></div>
-        <div class="param"><span class="param-name">Volume MA</span><span class="param-val">20</span></div>
-        <div class="param"><span class="param-name">Volume Threshold</span><span class="param-val">1.2x</span></div>
+        <div class="param"><span class="param-name">Volume Threshold</span><span class="param-val">1.3x</span></div>
+        <div class="param"><span class="param-name">Min Confluence</span><span class="param-val">3/5</span></div>
+        <div class="param"><span class="param-name">Cooldown</span><span class="param-val">8 bars</span></div>
         <div class="param"><span class="param-name">ATR Length</span><span class="param-val">14</span></div>
-        <div class="param"><span class="param-name">Signal Cooldown</span><span class="param-val">5 bars</span></div>
+        <div class="param"><span class="param-name">Break-Even</span><span class="param-val">ON</span></div>
+        <div class="param"><span class="param-name">Trailing Stop</span><span class="param-val">ON</span></div>
       </div>
     </div>
   </div>
@@ -260,7 +309,7 @@ body::before{content:'';position:fixed;inset:0;background-image:
     <div class="steps">
       <div class="step">
         <div class="step-num">01</div>
-        <div class="step-txt">Ouvre <strong>TradingView</strong> et charge le chart <strong>SOLUSDT Perp</strong></div>
+        <div class="step-txt">Ouvre <strong>TradingView</strong> et charge <strong>SOLUSDT Perp</strong> en <strong>3min</strong></div>
       </div>
       <div class="step">
         <div class="step-num">02</div>
@@ -268,11 +317,11 @@ body::before{content:'';position:fixed;inset:0;background-image:
       </div>
       <div class="step">
         <div class="step-num">03</div>
-        <div class="step-txt">Copie le code ci-dessous et colle-le dans l'éditeur</div>
+        <div class="step-txt">Copie le code et colle-le dans l'editeur</div>
       </div>
       <div class="step">
         <div class="step-num">04</div>
-        <div class="step-txt">Clique <strong>"Add to Chart"</strong> et configure les alertes</div>
+        <div class="step-txt"><strong>"Add to Chart"</strong> puis ouvre l'onglet <strong>Strategy Tester</strong></div>
       </div>
     </div>
 
@@ -287,37 +336,32 @@ body::before{content:'';position:fixed;inset:0;background-image:
 // Ou clique sur le bouton COPIER pour charger
 // le code directement depuis cette page.</pre>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-top:12px;">Le code Pine Script complet est dans le fichier <strong>SOL_Scalper_Pro.pine</strong></p>
+    <p style="font-size:12px;color:var(--muted);margin-top:12px;">Le code Pine Script V2 complet est dans <strong>SOL_Scalper_Pro.pine</strong></p>
   </div>
 
-  <!-- ALERTS SETUP -->
+  <!-- ALERTS -->
   <div class="section">
-    <div class="section-title">Configuration des Alertes</div>
+    <div class="section-title">Alertes</div>
     <table class="sig-table">
       <tr>
         <th>Alerte</th>
-        <th>Déclencheur</th>
+        <th>Declencheur</th>
         <th>Usage</th>
       </tr>
       <tr>
         <td style="color:var(--green);">SOL Scalper — LONG</td>
-        <td>Signal d'achat détecté</td>
-        <td style="color:var(--muted)">Notification push / webhook pour entry long</td>
+        <td>Signal long avec score + HTF</td>
+        <td style="color:var(--muted)">Push / webhook pour entry long</td>
       </tr>
       <tr>
         <td style="color:var(--red);">SOL Scalper — SHORT</td>
-        <td>Signal de vente détecté</td>
-        <td style="color:var(--muted)">Notification push / webhook pour entry short</td>
+        <td>Signal short avec score + HTF</td>
+        <td style="color:var(--muted)">Push / webhook pour entry short</td>
       </tr>
       <tr>
         <td style="color:var(--orange);">BB Squeeze Detected</td>
-        <td>Bollinger Bands se compriment</td>
-        <td style="color:var(--muted)">Préparer un trade — breakout imminent</td>
-      </tr>
-      <tr>
-        <td style="color:var(--purple);">Squeeze Released</td>
-        <td>Squeeze terminé, expansion des bandes</td>
-        <td style="color:var(--muted)">Confirmer la direction du breakout</td>
+        <td>Bollinger Bands compriment</td>
+        <td style="color:var(--muted)">Breakout imminent — se preparer</td>
       </tr>
     </table>
   </div>
@@ -326,16 +370,16 @@ body::before{content:'';position:fixed;inset:0;background-image:
   <div class="section" style="border-color:rgba(255,82,82,0.3);background:rgba(255,82,82,0.03);">
     <div class="section-title" style="color:var(--red);">Avertissement</div>
     <p style="font-size:13px;color:var(--muted);line-height:1.8;">
-      Cet indicateur est un outil d'aide à la décision et <strong style="color:var(--red);">ne garantit aucun profit</strong>.
+      Cet indicateur est un outil d'aide a la decision et <strong style="color:var(--red);">ne garantit aucun profit</strong>.
       Le trading de futures avec effet de levier comporte des risques significatifs de perte en capital.
-      Testez toujours en paper trading avant d'utiliser en réel. Ne tradez jamais avec de l'argent que vous ne pouvez pas vous permettre de perdre.
-      Les performances passées ne préjugent pas des performances futures.
+      Testez toujours en paper trading avant d'utiliser en reel. Ne tradez jamais avec de l'argent que vous ne pouvez pas vous permettre de perdre.
+      Les performances passees ne prejugent pas des performances futures.
     </p>
   </div>
 
   <div class="footer">
-    SOL Scalper Pro &middot; Pine Script v5 &middot; TradingView Indicator<br>
-    <span style="color:var(--lime);">Fait pour le scalping SOLUSDT Perpetual Futures</span>
+    SOL Scalper Pro V2 &middot; Pine Script v5 &middot; TradingView Strategy<br>
+    <span style="color:var(--lime);">Scalping SOLUSDT Perpetual Futures — Confluence + HTF + Trailing</span>
   </div>
 
 </div>
@@ -347,11 +391,10 @@ async function copyCode() {
     const code = await resp.text();
     await navigator.clipboard.writeText(code);
     const btn = document.querySelector('.copy-btn');
-    btn.textContent = 'COPIÉ !';
+    btn.textContent = 'COPIE !';
     btn.style.background = '#00e676';
     setTimeout(() => { btn.textContent = 'COPIER LE CODE'; btn.style.background = ''; }, 2000);
   } catch(e) {
-    // Fallback: select the code block
     const pre = document.getElementById('pine-code');
     const range = document.createRange();
     range.selectNode(pre);
