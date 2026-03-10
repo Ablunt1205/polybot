@@ -1,0 +1,183 @@
+// This Pine Script™ source code is subject to the terms of the Mozilla Public License 2.0
+// https://mozilla.org/MPL/2.0/
+// © PolyBot Pro
+
+//@version=5
+indicator("Structure Reversal Detector", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ─── INPUTS ───────────────────────────────────────────────────────────────────
+pivotLen      = input.int(5,     "Pivot Lookback",      minval=2, maxval=50, group="Structure")
+showBOS       = input.bool(true, "Show BOS (Break of Structure)",           group="Structure")
+showCHoCH     = input.bool(true, "Show CHoCH (Change of Character)",       group="Structure")
+showSwingPts  = input.bool(true, "Show Swing Points",                      group="Display")
+showOrderBlk  = input.bool(true, "Show Order Blocks",                      group="Display")
+bullColor     = input.color(color.new(#00e676, 0), "Bullish Color",        group="Colors")
+bearColor     = input.color(color.new(#ff1744, 0), "Bearish Color",        group="Colors")
+obBullColor   = input.color(color.new(#00e676, 85), "OB Bullish Fill",     group="Colors")
+obBearColor   = input.color(color.new(#ff1744, 85), "OB Bearish Fill",     group="Colors")
+
+// ─── PIVOT DETECTION ──────────────────────────────────────────────────────────
+ph = ta.pivothigh(high, pivotLen, pivotLen)
+pl = ta.pivotlow(low, pivotLen, pivotLen)
+
+// ─── STATE VARIABLES ──────────────────────────────────────────────────────────
+var float lastHH      = na
+var float lastLL      = na
+var float lastHL      = na
+var float lastLH      = na
+var float prevSwingHi = na
+var float prevSwingLo = na
+var int   trend       = 0   // 1 = bullish, -1 = bearish, 0 = undefined
+var int   swingHiBar  = na
+var int   swingLoBar  = na
+
+// Track previous values for CHoCH detection
+var float prevHH = na
+var float prevLL = na
+
+// ─── SWING POINT PROCESSING ───────────────────────────────────────────────────
+pivotOffset = pivotLen
+
+// --- Swing High detected ---
+if not na(ph)
+    phBar = bar_index - pivotOffset
+
+    if showSwingPts
+        label.new(phBar, ph, "HH", style=label.style_label_down, color=color.new(bearColor, 70), textcolor=bearColor, size=size.tiny)
+
+    prevSwingHi := lastHH
+    swingHiBar  := phBar
+
+    if trend == 1
+        // In bullish trend: new high
+        if ph > lastHH or na(lastHH)
+            // Higher High → continuation
+            prevHH := lastHH
+            lastHH := ph
+        else
+            // Lower High → potential reversal
+            lastLH := ph
+    else if trend == -1
+        // In bearish trend: forming a high
+        if not na(lastHH) and ph < lastHH
+            lastLH := ph
+        else
+            lastHH := ph
+    else
+        lastHH := ph
+
+// --- Swing Low detected ---
+if not na(pl)
+    plBar = bar_index - pivotOffset
+
+    if showSwingPts
+        label.new(plBar, pl, "LL", style=label.style_label_up, color=color.new(bullColor, 70), textcolor=bullColor, size=size.tiny)
+
+    prevSwingLo := lastLL
+    swingLoBar  := plBar
+
+    if trend == -1
+        // In bearish trend: new low
+        if pl < lastLL or na(lastLL)
+            // Lower Low → continuation
+            prevLL := lastLL
+            lastLL := pl
+        else
+            // Higher Low → potential reversal
+            lastHL := pl
+    else if trend == 1
+        // In bullish trend: forming a low
+        if not na(lastLL) and pl > lastLL
+            lastHL := pl
+        else
+            lastLL := pl
+    else
+        lastLL := pl
+
+// ─── STRUCTURE BREAK DETECTION ────────────────────────────────────────────────
+// BOS  = Break of Structure (trend continuation)
+// CHoCH = Change of Character (trend reversal / structure inversion)
+
+bosUp   = false
+bosDn   = false
+chochUp = false
+chochDn = false
+
+// Bullish BOS: price breaks above the last Higher High in an existing uptrend
+if trend == 1 and not na(lastHH) and close > lastHH
+    bosUp := true
+
+// Bearish BOS: price breaks below the last Lower Low in an existing downtrend
+if trend == -1 and not na(lastLL) and close < lastLL
+    bosDn := true
+
+// Bullish CHoCH: in a bearish trend, price breaks above the last Lower High → reversal to bullish
+if trend == -1 and not na(lastLH) and close > lastLH
+    chochUp := true
+    trend   := 1
+    lastHH  := lastLH
+    lastLH  := na
+
+// Bearish CHoCH: in a bullish trend, price breaks below the last Higher Low → reversal to bearish
+if trend == 1 and not na(lastHL) and close < lastHL
+    chochDn := true
+    trend   := -1
+    lastLL  := lastHL
+    lastHL  := na
+
+// Initialize trend on first BOS if still undefined
+if trend == 0
+    if not na(lastHH) and close > lastHH
+        trend := 1
+    if not na(lastLL) and close < lastLL
+        trend := -1
+
+// ─── DRAWING: BOS LINES ──────────────────────────────────────────────────────
+if bosUp and showBOS
+    line.new(bar_index - 10, lastHH, bar_index, lastHH, color=bullColor, style=line.style_dashed, width=1)
+    label.new(bar_index - 5, lastHH, "BOS", style=label.style_label_down, color=color.new(bullColor, 60), textcolor=bullColor, size=size.small)
+
+if bosDn and showBOS
+    line.new(bar_index - 10, lastLL, bar_index, lastLL, color=bearColor, style=line.style_dashed, width=1)
+    label.new(bar_index - 5, lastLL, "BOS", style=label.style_label_up, color=color.new(bearColor, 60), textcolor=bearColor, size=size.small)
+
+// ─── DRAWING: CHoCH LINES ────────────────────────────────────────────────────
+if chochUp and showCHoCH
+    chochLevel = lastHH
+    line.new(bar_index - 15, chochLevel, bar_index, chochLevel, color=bullColor, style=line.style_solid, width=2)
+    label.new(bar_index - 7, chochLevel, "CHoCH ▲", style=label.style_label_down, color=bullColor, textcolor=color.white, size=size.normal)
+
+if chochDn and showCHoCH
+    chochLevel = lastLL
+    line.new(bar_index - 15, chochLevel, bar_index, chochLevel, color=bearColor, style=line.style_solid, width=2)
+    label.new(bar_index - 7, chochLevel, "CHoCH ▼", style=label.style_label_up, color=bearColor, textcolor=color.white, size=size.normal)
+
+// ─── ORDER BLOCKS ─────────────────────────────────────────────────────────────
+// Draw a bullish OB on the last bearish candle before a bullish CHoCH
+if chochUp and showOrderBlk
+    obIdx = bar_index - 1
+    for i = 1 to 10
+        if close[i] < open[i]  // bearish candle
+            obIdx := bar_index - i
+            box.new(obIdx, high[i], bar_index + 20, low[i], border_color=bullColor, bgcolor=obBullColor, border_width=1)
+            break
+
+// Draw a bearish OB on the last bullish candle before a bearish CHoCH
+if chochDn and showOrderBlk
+    obIdx = bar_index - 1
+    for i = 1 to 10
+        if close[i] > open[i]  // bullish candle
+            obIdx := bar_index - i
+            box.new(obIdx, high[i], bar_index + 20, low[i], border_color=bearColor, bgcolor=obBearColor, border_width=1)
+            break
+
+// ─── TREND BACKGROUND ─────────────────────────────────────────────────────────
+trendBg = trend == 1 ? color.new(bullColor, 96) : trend == -1 ? color.new(bearColor, 96) : na
+bgcolor(trendBg, title="Trend Background")
+
+// ─── ALERTS ───────────────────────────────────────────────────────────────────
+alertcondition(chochUp, "Bullish CHoCH",  "Bullish Change of Character detected")
+alertcondition(chochDn, "Bearish CHoCH",  "Bearish Change of Character detected")
+alertcondition(bosUp,   "Bullish BOS",    "Bullish Break of Structure detected")
+alertcondition(bosDn,   "Bearish BOS",    "Bearish Break of Structure detected")
+alertcondition(chochUp or chochDn, "Any CHoCH", "Structure reversal detected")
